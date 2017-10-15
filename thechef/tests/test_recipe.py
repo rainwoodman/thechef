@@ -1,12 +1,15 @@
-from thechef.recipe import Recipe
-from thechef.utensils import Spatula, Tongs
-from thechef.containers import IronPan
-from thechef.cultaries import Knife, Scissor
-from thechef.platforms import CuttingBoard, StoveTop
-from thechef.formfactor import GrinderBottle, Powder, Wholesome, Fillet
-from thechef.spices import Ginger, BlackPepper, SeaSalt
+from thechef.base import Recipe, Until
 
+from thechef.tools import Spatula, Tongs, Knife, Scissor
+from thechef.containers import IronPan
+from thechef.platforms import CuttingBoard, StoveTop
+from thechef.formfactors import Dispenser, Grinder, Powder, Wholesome, Fillet
+
+from thechef.raw import Ginger, BlackPepper, SeaSalt, Sesame, Oil
 from thechef.raw import Salmon, ChickenStock, Califlower, Carrot
+
+from thechef.tools import Heat
+from thechef.base import Done, Progress
 
 def test_recipe():
     recipe = Recipe("Grilled Salmon")
@@ -14,8 +17,9 @@ def test_recipe():
     califlower = recipe.use(Califlower, amount=1)
     carrot = recipe.use(Carrot, amount=0.3)
     salmon = recipe.use(Salmon, amount=1, formfactor=Fillet)
-    pan = recipe.use(IronPan, amount=1, spec='10 inches'))
+    pan    = recipe.use(IronPan, specs='10 inches')
     ginger = recipe.use(Ginger, amount=0.1)
+    sesame = recipe.use(Sesame, amount=0.1)
 
     stock = recipe.use(ChickenStock, amount=100)
 
@@ -33,37 +37,44 @@ def test_recipe():
                      amount=Until('small pieces'))
 
     salmon.apply([
-                    GrinderBottle(Salt),
-                    GrinderBottle(BlackPepper),
-                ],
-                amount='*', technique='both sides')
+                    Grinder(SeaSalt),
+                    Grinder(BlackPepper)
+                ], amount=0.1,
+                technique='both sides')
 
-    pan.apply(Oil, amount=Until('slightly oiled'))
+    pan.apply(Dispenser(Oil), amount=Until('slightly oiled'))
+    pan.apply(Grinder(SeaSalt), amount=Until('slightly covered'))
  
-    pan.add(ginger)
+    pan.add(ginger, sesame, overlap=True)
 
     pan.apply(Heat(0.9), on=StoveTop, amount=Until('hot', limit=5))
 
-    pan.add(salmon, location=Top(ginger))
+    pan.add(salmon, overlap=True)
 
-    with pan.apply(Heat(0.7) on=StoveTop, amount=10) as tr:
+    with pan.apply(Heat(0.7), on=StoveTop, amount=10) as tr:
         def flip():
             salmon.apply(Spatula, amount=Until('flipped'))
 
         def addvegi():
-            pan.add(califlower, carrot, location=Side(salmon))
+            pan.add(califlower, carrot, overlap=False)
+            pan.add([
+                    recipe.use(SeaSalt, amount=0.1),
+                    recipe.use(BlackPepper, amount=0.1)
+                    ]
+                    )
 
         tr.notify(Progress(amount=5), addvegi)
         tr.notify(Done, flip)
 
-    with pan.apply(Heat(0.7), on=Stovetop, amount=8) as tr:
+    with pan.apply(Heat(0.7), on=StoveTop, amount=8) as tr:
         def addstock():
-            pan.add(stock)
+            pan.add(stock, overlap=True)
+            pan.cover()
 
         tr.notify(Progress(amount=6), addstock)
         
-    pan.apply([Cover, Heat(0.4)], on=Stovetop, amount=3)
-
+    pan.apply(Heat(0.4), on=StoveTop, amount=3)
+    pan.uncover()
     pan.remove(salmon, califlower, carrot)
 
     print(recipe)
